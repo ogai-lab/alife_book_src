@@ -18,11 +18,11 @@ class SwarmVisualizer(object):
         self._canvas.show()
 
     def update(self, position, direction):
-        assert position.ndim is 2 and position.shape[1] in (2,3)
-        assert direction.ndim is 2 and direction.shape[1] in (2,3)
+        assert position.ndim == 2 and position.shape[1] in (2,3)
+        assert direction.ndim == 2 and direction.shape[1] in (2,3)
         assert position.shape[0] == direction.shape[0]
         if self._arrows is None:
-            self._arrows = visuals.Arrow(arrow_size=self.ARROW_SIZE, arrow_type='triangle_30', parent=self._view.scene)
+            self._arrows = visuals.Arrow(arrow_size=self.ARROW_SIZE, arrow_type='triangle_30', parent=self._view.scene, arrow_color=(0.5, 0.5, 0.5, 1))
         # arrow_coordinate[0::2] is position of arrow and
         # arrow_coordinate[1::2] is direction of tail (length is ignored)
         arrow_coordinate = np.repeat(position, 2, axis=0)
@@ -32,7 +32,7 @@ class SwarmVisualizer(object):
         vispy.app.process_events()
 
     def set_markers(self, position):
-        assert position.ndim is 2 and position.shape[-1] in (2,3)
+        assert position.ndim == 2 and position.shape[-1] in (2,3)
         if self._markers is None:
             self._markers = visuals.Markers(parent=self._view.scene)
         self._markers.set_data(position, face_color=(1,0,0), size=20)
