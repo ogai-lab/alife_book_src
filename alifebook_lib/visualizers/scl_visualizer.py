@@ -11,6 +11,7 @@ class SCLVisualizer(object):
 
     def __init__(self, width=600, height=600):
         self._canvas = app.Canvas(size=(width, height), position=(0,0), keys='interactive', title="ALife book "+self.__class__.__name__)
+        self._updated = False
         self._canvas.events.draw.connect(self._on_draw)
         self._canvas.events.resize.connect(self._on_resize)
         vertex_shader = open(path.join(GLSL_PATH, 'scl_visualizer_vertex.glsl'), 'r').read()
@@ -24,10 +25,13 @@ class SCLVisualizer(object):
         gloo.set_viewport(0, 0, *self._canvas.physical_size)
 
     def _on_draw(self, event):
+        if not self._updated:
+            return
         gloo.clear()
         self._render_program.draw(gloo.gl.GL_POINTS)
 
     def update(self, particle_data):
+        self._updated = True
         if type(particle_data) is not np.ndarray:
             particle_data = np.array(particle_data)
         row_num, col_num = particle_data.shape
