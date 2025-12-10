@@ -165,7 +165,7 @@ while simulator:
     action = [left_wheel_speed, right_wheel_speed]
     color = (0, 0, 255)
     active_module = controller.get_active_module_name()
-    if active_module is "AvoidModule":
+    if active_module == "AvoidModule":
         simulator.set_bodycolor((255, 0, 0))
     elif active_module in ("WanderModule", "ChaosWanderModule"):
         simulator.set_bodycolor((0, 255, 0))

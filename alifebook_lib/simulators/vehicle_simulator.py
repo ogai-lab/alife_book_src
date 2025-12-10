@@ -13,8 +13,8 @@ class VehicleSimulator(object):
     SENSOR_RANGE = 80
     SENSOR_NOISE = 0
     MOTOR_NOISE = 1.0
-    FEED_COLOR = (0, 0, 0)
-    FEED_ACTIVE_COLOR = (255, 0, 0)
+    FEED_COLOR = (0, 0, 0, 255)
+    FEED_ACTIVE_COLOR = (255, 0, 0, 255)
     FEED_EATING_TIME = 200
 
     def __init__(self, width=600, height=600, obstacle_num=5, obstacle_radius=30, feed_num=0, feed_radius=5):
@@ -53,7 +53,7 @@ class VehicleSimulator(object):
         for w in walls:
             w.collision_type = self.COLLISION_TYPE.OBJECT
             w.friction = 0.2
-        self.__simulation_space.add(walls)
+            self.__simulation_space.add(w)
 
         # vehicle
         mass = 1
@@ -67,18 +67,18 @@ class VehicleSimulator(object):
         sensor_l_s = Segment(self.__vehicle_body, (0, 0), (self.SENSOR_RANGE * np.cos(self.SENSOR_ANGLE), self.SENSOR_RANGE * np.sin(self.SENSOR_ANGLE)), 0)
         sensor_l_s.sensor = True
         sensor_l_s.collision_type = self.COLLISION_TYPE.LEFT_SENSOR
-        handler_l = self.__simulation_space.add_collision_handler(self.COLLISION_TYPE.LEFT_SENSOR, self.COLLISION_TYPE.OBJECT)
-        handler_l.pre_solve = self.__left_sensr_handler
-        handler_l.separate = self.__left_sensr_separate_handler
+        self.__simulation_space.on_collision(self.COLLISION_TYPE.LEFT_SENSOR, self.COLLISION_TYPE.OBJECT, 
+                                              pre_solve=self.__left_sensr_handler, 
+                                              separate=self.__left_sensr_separate_handler)
         self.__simulation_space.add(sensor_l_s)
 
         # right sensor
         sensor_r_s = Segment(self.__vehicle_body, (0, 0), (self.SENSOR_RANGE * np.cos(-self.SENSOR_ANGLE), self.SENSOR_RANGE * np.sin(-self.SENSOR_ANGLE)), 0)
         sensor_r_s.sensor = True
         sensor_r_s.collision_type = self.COLLISION_TYPE.RIGHT_SENSOR
-        handler_r = self.__simulation_space.add_collision_handler(self.COLLISION_TYPE.RIGHT_SENSOR, self.COLLISION_TYPE.OBJECT)
-        handler_r.pre_solve = self.__right_sensr_handler
-        handler_r.separate = self.__right_sensr_separate_handler
+        self.__simulation_space.on_collision(self.COLLISION_TYPE.RIGHT_SENSOR, self.COLLISION_TYPE.OBJECT, 
+                                              pre_solve=self.__right_sensr_handler, 
+                                              separate=self.__right_sensr_separate_handler)
         self.__simulation_space.add(sensor_r_s)
 
         # obstacles
@@ -88,7 +88,10 @@ class VehicleSimulator(object):
             shape = Circle(body, obstacle_radius)
             shape.friction = 0.2
             shape.collision_type = self.COLLISION_TYPE.OBJECT
-            self.__simulation_space.add(shape)
+            if self.__vehicle_body not in self.__simulation_space.bodies:
+                self.__simulation_space.add(self.__vehicle_body)
+            if self.__vehicle_shape not in self.__simulation_space.shapes:
+                self.__simulation_space.add(self.__vehicle_shape)
 
         for i in range(feed_num):
             body = Body(1, 1)
@@ -97,9 +100,9 @@ class VehicleSimulator(object):
             shape.sensor = True
             shape.color = self.FEED_COLOR
             shape.collision_type = self.COLLISION_TYPE.FEED
-            handler = self.__simulation_space.add_collision_handler(self.COLLISION_TYPE.VEHICLE, self.COLLISION_TYPE.FEED)
-            handler.pre_solve = self.__feed_touch_handler
-            handler.separate = self.__feed_separate_handler
+            self.__simulation_space.on_collision(self.COLLISION_TYPE.VEHICLE, self.COLLISION_TYPE.FEED, 
+                                                  pre_solve=self.__feed_touch_handler, 
+                                                  separate=self.__feed_separate_handler)
             self.__simulation_space.add(body, shape)
             self.__feed_touch_counter[shape] = 0
 
@@ -110,7 +113,7 @@ class VehicleSimulator(object):
         self.__vehicle_body.position = self.ARENA_SIZE/2+self.DISPLAY_MARGIN, self.ARENA_SIZE/2+self.DISPLAY_MARGIN
         self.__vehicle_body.angle = 0
         for b in self.__feed_bodies:
-            b.position = self.DISPLAY_MARGIN + self.__feed_radius + np.random.rand(2) * (self.ARENA_SIZE - self.__feed_radius*2)
+            b.position = (self.DISPLAY_MARGIN + self.__feed_radius + np.random.rand(2) * (self.ARENA_SIZE - self.__feed_radius*2)).tolist()
 
     def update(self, action):
         self.__vehicle_body.velocity = (0, 0)
@@ -141,7 +144,7 @@ class VehicleSimulator(object):
 
     def set_bodycolor(self, color):
         assert len(color) == 3
-        self.__vehicle_shape.color = color
+        self.__vehicle_shape.color = color + (255,)
 
     def __feed_touch_handler(self, arbiter, space, data):
         feed = arbiter.shapes[1]
@@ -149,7 +152,7 @@ class VehicleSimulator(object):
         self.__feed_touch_counter[feed] += 1
         self.__feed_sensor_val = True
         if (self.__feed_touch_counter[feed] > self.FEED_EATING_TIME):
-            feed.body.position = self.DISPLAY_MARGIN + feed.radius/2 + np.random.rand(2) * (self.ARENA_SIZE - feed.radius)
+            feed.body.position = list(self.DISPLAY_MARGIN + feed.radius/2 + np.random.rand(2) * (self.ARENA_SIZE - feed.radius))
         return True
 
     def __feed_separate_handler(self, arbiter, space, data):
@@ -161,7 +164,7 @@ class VehicleSimulator(object):
 
     def __left_sensr_handler(self, arbiter, space, data):
         p = arbiter.contact_point_set.points[0]
-        distance = self.__vehicle_body.world_to_local(p.point_b).get_length()
+        distance = self.__vehicle_body.world_to_local(p.point_b).length
         self.__left_sensor_val = 1 - distance / self.SENSOR_RANGE
         self.__left_sensor_val += self.SENSOR_NOISE * np.random.randn()
         return True
@@ -172,7 +175,7 @@ class VehicleSimulator(object):
 
     def __right_sensr_handler(self, arbiter, space, data):
         p = arbiter.contact_point_set.points[0]
-        distance = self.__vehicle_body.world_to_local(p.point_b).get_length()
+        distance = self.__vehicle_body.world_to_local(p.point_b).length
         self.__right_sensor_val = 1 - distance / self.SENSOR_RANGE
         self.__right_sensor_val += self.SENSOR_NOISE * np.random.randn()
         return True
